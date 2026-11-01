@@ -7,7 +7,7 @@
 // qu'il partage avec le Hub.
 import { lireConfig } from '../socle/src/index.js';
 
-export const VERSION = '1.3.0';
+export const VERSION = '1.3.1';
 
 const URL_OU_VIDE = { type: 'url', defaut: '' };
 const DERIVE = /^cer_[a-z0-9][a-z0-9-]{1,30}_[0-9a-f]{64}$/;
