@@ -8,7 +8,7 @@ name: vigie
 services:
   vigie:
     build: .
-    image: ghcr.io/codexx64/vigie:1.3.0
+    image: ghcr.io/nesaris/vigie:1.3.0
     container_name: vigie
     restart: unless-stopped
     # 5514 : journaux de la passerelle UniFi (syslog CEF), UDP et TCP, sur le réseau.

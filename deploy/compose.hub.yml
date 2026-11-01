@@ -3,7 +3,7 @@
 # adresses des services voisins avec un jeton dérivé pour VIGIE seule.
 services:
   vigie:
-    image: ghcr.io/codexx64/vigie:{{config.IMAGE_TAG}}
+    image: ghcr.io/nesaris/vigie:{{config.IMAGE_TAG}}
     container_name: {{service.host}}
     restart: unless-stopped
     networks: [hub]
