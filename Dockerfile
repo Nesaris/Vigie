@@ -3,8 +3,11 @@
 # TLS et zlib sont dans le moteur). Image de base épinglée par empreinte
 # (index multi-architecture amd64 + arm64) : une étiquette peut être déplacée,
 # une empreinte non.
-ARG NODE_IMAGE=node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+ARG NODE_IMAGE=node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
 FROM ${NODE_IMAGE}
+# Paquets du système à jour, et pas de npm, npx, corepack ni yarn : le service
+# n'a aucune dépendance npm, ils n'ont rien à faire dans l'image.
+RUN apk upgrade --no-cache && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 RUN apk add --no-cache tini \
  && addgroup -S -g 10004 vigie && adduser -S -G vigie -u 10004 -H -s /sbin/nologin vigie \
  && mkdir -p /data && chown vigie:vigie /data && chmod 700 /data \
