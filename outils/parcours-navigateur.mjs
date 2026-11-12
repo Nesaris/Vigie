@@ -50,7 +50,19 @@ await page.getByRole('button', { name: /Créer la clé maintenant/ }).click();
 await page.getByText('J’ai rangé ces codes en lieu sûr.').click();
 await page.getByRole('button', { name: 'Terminer' }).click();
 await passerAssistant(page, { controle });
-await page.getByRole('heading', { name: 'Posture de sécurité', exact: true }).waitFor();
+await page.getByRole('heading', { name: 'Votre réseau', exact: true }).waitFor();
+await page.locator('svg.monde').waitFor();
+await page.waitForTimeout(800);
+await controle('accueil');
+await aller('Attaques');
+await page.locator('svg.flux').waitFor();
+await controle('attaques');
+for (const periode of ['7 jours', '1 h']) {
+  await page.getByRole('tab', { name: periode, exact: true }).click();
+  await page.waitForTimeout(500);
+  await controle(`attaques-${periode.replace(' ', '')}`);
+}
+await aller('Posture', 'Posture de sécurité');
 await page.waitForTimeout(800);
 await controle('tableau');
 await aller('Constats');
