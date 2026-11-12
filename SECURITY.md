@@ -540,3 +540,15 @@ Aucun contrôle ne change de statut ; aucun changement de comportement du servic
 - images publiées sous ghcr.io/nesaris.
 
 Contrôles rejoués avant livraison : gitleaks sur tout l'historique (aucune fuite), identité et fuseau des nouveaux commits (CodexX64, UTC, aucune mention d'outil), liste d'anonymat sur l'arbre et les nouveaux commits (aucune correspondance).
+
+## Suivi du 2026-11-12 (1.4.0) : accueil, carnet et carte des attaques
+
+Aucun contrôle ne change de statut. Ce que la version ajoute, au regard du référentiel :
+
+- route `GET /api/accueil` : lecture (session), jeton du Hub et jeton dérivé, comme `/api/etat` ; paramètre `heures` validé (entier de 1 à 720), tout autre paramètre refusé ; entrée ajoutée à la table des droits des essais (chaque route y est vérifiée) ;
+- table `attaques` : une ligne par heure, adresse publique, cible, port et nature ; compteurs tenus en mémoire (au plus 50 000 clés, versées dès ce plafond) puis écrits en une transaction toutes les dix secondes ; gardée 30 jours (`carnetJours`, entier de 1 à 365, validé) ; seules des adresses publiques y entrent ; aucune donnée personnelle de compte ;
+- nouvelles destinations sortantes, fixes et en HTTPS : les fichiers « delegated » des cinq registres régionaux (ftp.arin.net, ftp.ripe.net, ftp.apnic.net, ftp.lacnic.net, ftp.afrinic.net), une fois par semaine ; réponse lue par morceaux et bornée à 80 Mio, écrite à côté puis renommée (0600), gardée si le nouveau fichier n'a pas de blocs ; aucune adresse réglable, donc aucune requête vers une destination choisie par un utilisateur ;
+- déclarer un émetteur depuis l'accueil ou le bouclier passe par la route existante `PUT /api/reglages/bouclier` : administrateur et renfort, adresse validée, journal `reglages.bouclier` ;
+- interface : tout est construit nœud par nœud (h(), createElementNS, nœuds texte), aucun balisage injecté ; les contours de la carte sont des données publiques (Natural Earth, domaine public), fabriquées hors ligne par `outils/carte-monde.mjs` et servies par VIGIE, aucun appel à un tiers depuis le navigateur.
+
+Contrôles rejoués avant livraison : 63 essais ; parcours du navigateur dans les quatre gammes et en SOMA sombre, 231 écrans × largeurs chacun, aucun défaut de mise en page, aucune erreur ; gitleaks sur tout l'historique ; identité et fuseau des nouveaux commits (CodexX64, UTC, aucune mention d'outil) ; liste d'anonymat sur l'arbre et les nouveaux commits.
