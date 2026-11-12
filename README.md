@@ -17,6 +17,18 @@ domaine, du vert au rouge, avec la correction à côté de chaque écart. Une IA
 ou écarte les constats et rédige la synthèse ; elle ne change ni les gravités
 ni le score.
 
+- **Accueil qui va droit au but.** D'abord : le réseau est-il vraiment
+  protégé ? Quatre maillons — journaux reçus, émetteur déclaré, blocage
+  automatique, passerelle ou Cloudflare reliés — et, s'il en manque un, le
+  bouton qui le règle. Puis les attaques des dernières 24 h, ce que VIGIE a
+  bloqué, les machines visées et ce qui reste à faire, cinq lignes par liste.
+- **Carte des attaques.** D'où viennent les attaques (pays d'enregistrement
+  du réseau source, d'après les registres régionaux d'Internet : ARIN,
+  RIPE NCC, APNIC, LACNIC, AFRINIC, téléchargés chaque semaine, sans service
+  tiers ni base sous licence), qui attaque qui, au fil des heures, sur 1 h,
+  24 h, 7 ou 30 jours. Chaque coup est compté en mémoire et versé en base
+  toutes les dix secondes : des millions de lignes par jour ne ralentissent
+  pas VIGIE.
 - **Moteur sans IA.** Règles déterministes : mêmes entrées, même résultat. Six
   domaines (surface réseau, segmentation, authentification, mises à jour,
   chiffrement, journaux), cinq gravités (conforme, info, faible, élevé,
@@ -61,9 +73,17 @@ ni le score.
 
 ## Aperçu
 
-| <img src="medias/capture-1.png" alt="Le tableau : score par domaine"> |
+| <img src="medias/capture-accueil.png" alt="L’accueil : la protection, les attaques, ce qui reste à faire"> |
 |:--:|
-| Le tableau : score par domaine |
+| L’accueil : la protection, les attaques, ce qui reste à faire |
+
+| <img src="medias/capture-attaques.png" alt="La carte des attaques"> |
+|:--:|
+| La carte des attaques |
+
+| <img src="medias/capture-1.png" alt="La posture : score par domaine"> |
+|:--:|
+| La posture : score par domaine |
 
 | <img src="medias/capture-2.png" alt="Les constats et leur correction"> |
 |:--:|
@@ -180,6 +200,18 @@ fait rien bloquer ni isoler seul : VIGIE le signale (« menace signalée »),
 puisque n'importe quelle machine du réseau a pu l'écrire. Déclarer la
 passerelle (Bouclier → Réglages → Émetteurs) rend la riposte automatique ; les
 sondes, qui ont leur jeton, et la relève par MapMyLAN font toujours foi.
+L'accueil le dit en tête de page et propose de déclarer l'adresse d'où les
+journaux arrivent, en un clic.
+
+**Le carnet des attaques.** Ce qui entre de l'extérieur — alerte de l'IPS,
+refus du pare-feu, connexion entrante, alerte de la sentinelle venue d'une
+adresse publique — est compté par heure, adresse, cible, port et nature
+(table `attaques`, gardée 30 jours, `carnetJours` dans les réglages du
+bouclier). Le pays d'une adresse vient des fichiers « delegated » des cinq
+registres régionaux, téléchargés une fois par semaine sur le volume
+(`geo/`) : c'est le pays du titulaire du réseau, pas l'emplacement exact de
+la machine. Sans accès à ces serveurs, la carte affiche « origine inconnue »
+et tout le reste fonctionne.
 
 **Comment il note** (idées de Suricata, sshguard, psad et CrowdSec, pas leur
 code). Chaque observation ajoute des points à l'adresse qui la porte, avec sa
