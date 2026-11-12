@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.4.0",
+    "date": "2026-11-12",
+    "points": [
+      "Nouvel accueil : d’abord si le réseau est vraiment protégé, et sinon le maillon qui manque, avec le bouton qui le règle (déclarer l’émetteur des journaux, passer en blocage réel, relier la passerelle).",
+      "Carte des attaques : d’où elles viennent (pays d’après les registres d’Internet, téléchargés chaque semaine), quelles machines elles visent, par heure, sur 1 h, 24 h, 7 ou 30 jours.",
+      "Chaque attaque vue est comptée sans ralentir VIGIE, même à des millions de lignes par jour ; une source se bloque depuis la carte.",
+      "Le tableau de bord de l’audit devient la page Posture."
+    ]
+  },
+  {
     "version": "1.3.1",
     "date": "2026-11-01",
     "points": [
