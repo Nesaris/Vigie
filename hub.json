@@ -8,7 +8,7 @@
   "icon": "shield",
   "repository": "https://github.com/CodexX64/vigie",
   "license": "MIT",
-  "minHubVersion": "0.9.0",
+  "minHubVersion": "0.17.0",
   "install": {
     "type": "compose",
     "compose": "deploy/compose.hub.yml",
