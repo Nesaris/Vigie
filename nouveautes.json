@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.5.0",
+    "date": "2026-11-12",
+    "points": [
+      "Le menu se place à gauche, en haut, en bas ou à droite : celle choisie dans la page Thème du Hub, ou la tienne (bouton à côté de clair ou sombre, ou appui long sur le menu puis glisser vers un bord)."
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-11-12",
     "points": [
