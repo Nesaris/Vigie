@@ -1,5 +1,5 @@
-// L'origine des attaques : pays d'une adresse d'après les registres, et
-// carnet des attaques compté par heure.
+// L'origine des attaques : pays d'une adresse d'après les registres, carnet
+// des attaques compté par heure, et la carte du monde.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -8,6 +8,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { lireDelegue, TablePays, Geo, REGISTRES } from '../src/bouclier/geo.js';
 import { Carnet, natureAlerte, natureObservation } from '../src/bouclier/carnet.js';
+import { PAYS, CENTRES, LARGEUR, HAUTEUR } from '../web/carte-monde.js';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carte-'));
 const silence = { info() {}, warn() {}, error() {} };
@@ -99,4 +100,16 @@ test('carnet : natures des observations et des alertes', () => {
   assert.equal(natureAlerte(['ssh', 'auth-echec']), 'force-brute');
   assert.equal(natureAlerte(['web', 'web-attaque']), 'web');
   assert.equal(natureAlerte(['noyau']), 'autre');
+});
+
+test('carte du monde : chaque pays a un tracé fermé dans le cadre et un point d’ancrage', () => {
+  assert.ok(Object.keys(PAYS).length > 170);
+  for (const [cc, d] of Object.entries(PAYS)) {
+    assert.match(cc, /^[A-Z]{2}$/);
+    assert.match(d, /^M[\d.\- LMZ]+Z$/);
+    assert.ok(CENTRES[cc], `ancrage de ${cc}`);
+  }
+  for (const [cc, [x, y]] of Object.entries(CENTRES)) assert.ok(x >= 0 && x <= LARGEUR && y >= 0 && y <= HAUTEUR, cc);
+  assert.ok(CENTRES.SG && CENTRES.HK, 'petits territoires très actifs');
+  assert.ok(!PAYS.AQ);
 });
