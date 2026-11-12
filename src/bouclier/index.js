@@ -167,6 +167,41 @@ export class Bouclier {
     };
   }
 
+  /**
+   * Ce que l'accueil doit dire d'abord : VIGIE bloque-t-il vraiment ? Sinon,
+   * pourquoi, et l'action qui règle le problème. Les cas sont lus dans l'ordre
+   * où ils empêchent de protéger : rien reçu, mode, émetteur, passerelle.
+   */
+  protection({ signalees = 0 } = {}) {
+    const r = this.magasin.reglage('bouclier');
+    const s = this.recepteur.stats;
+    const t = this.maintenant();
+    const sondes = Object.values(this.sondes).filter(x => x.derniere && t - x.derniere < 3600e3).length;
+    const recoit = (s.derniere && t - s.derniere < 3600e3) || sondes > 0 || (this.releve.derniere && t - this.releve.derniere < 3600e3 && this.releve.lues > 0);
+    const emetteursVus = Object.entries(s.parEmetteur || {}).sort((a, b) => b[1] - a[1]).map(([ip, derniere]) => ({ ip, derniere }));
+    const declares = r.emetteurs || [];
+    const u = this.riposte.etatUnifi || {};
+    const passerelle = !!this.riposte.unifi();
+    const cloudflare = !!r.cloudflareJeton;
+    const base = { mode: r.mode, emetteurs: declares, emetteursVus: emetteursVus.slice(0, 8), dernierRefus: s.dernierRefus || null, refusees: s.refusees || 0, recues: s.recues || 0, sondes, passerelle, passerelleNom: u.passerelle || this.passerelle.libelle || this.passerelle.nom || '', synchro: u.synchro || null, erreurPasserelle: u.ok === false ? u.erreur : null, cloudflare };
+    const etat = (niveau, titre, texte, action = null) => ({ ...base, niveau, titre, texte, action });
+    if (!recoit) return etat('aveugle', 'VIGIE ne reçoit aucun journal', 'Sans les journaux de la passerelle ou d’une sonde, rien ne peut être vu ni bloqué.', { type: 'aller', page: 'bouclier', libelle: 'Brancher la passerelle' });
+    if (r.mode === 'observer') return etat('observe', 'VIGIE observe, sans rien bloquer', 'Le mode observation note les menaces et ne bloque rien.', { type: 'mode', mode: 'actif', libelle: 'Passer en blocage automatique' });
+    if (r.mode === 'simulation') return etat('simulation', 'VIGIE simule ses blocages', 'Les blocages sont notés « aurait bloqué » sans être envoyés à la passerelle.', { type: 'mode', mode: 'actif', libelle: 'Passer en blocage réel' });
+    if (!declares.length && (signalees > 0 || emetteursVus.length)) {
+      const ip = emetteursVus[0]?.ip || null;
+      return etat('emetteur', signalees ? `${signalees.toLocaleString('fr-FR')} menace${signalees > 1 ? 's' : ''} vue${signalees > 1 ? 's' : ''}, aucune bloquée` : 'Les blocages automatiques attendent un émetteur déclaré',
+        `Les journaux arrivent de ${ip || 'une adresse du réseau'}, qui n’est pas déclarée : n’importe quelle machine du réseau pourrait les écrire, alors VIGIE signale sans bloquer.`,
+        ip ? { type: 'emetteur', ip, libelle: `Déclarer ${ip}` } : { type: 'aller', page: 'bouclier', libelle: 'Déclarer l’émetteur' });
+    }
+    if (declares.length && s.refusees > 0 && s.dernierRefus && !(s.lues > 0)) {
+      return etat('emetteur', 'Les journaux reçus sont refusés', `Ils arrivent de ${s.dernierRefus}, absente des émetteurs déclarés.`, { type: 'emetteur', ip: s.dernierRefus, libelle: `Déclarer ${s.dernierRefus}` });
+    }
+    if (!passerelle && !cloudflare) return etat('partiel', 'VIGIE décide, mais rien n’applique ses blocages', 'Aucune passerelle ni Cloudflare n’est relié : les adresses bloquées restent dans VIGIE.', { type: 'aller', page: 'bouclier', libelle: 'Relier la passerelle' });
+    if (u.ok === false) return etat('partiel', 'La passerelle ne reçoit plus les blocages', u.erreur || 'Échec de la dernière synchronisation.', { type: 'synchroniser', libelle: 'Réessayer' });
+    return etat('protege', 'Le réseau est protégé', `VIGIE bloque seul ce qui attaque${passerelle ? `, sur ${base.passerelleNom || 'la passerelle'}` : ''}${cloudflare ? `${passerelle ? ' et' : ','} chez Cloudflare` : ''}.`);
+  }
+
   async demarrer() {
     await this.recepteur.demarrer().catch(e => this.log.warn?.(`[syslog] port ${this.cfg.syslogPort} : ${e.message}`));
     const listes = () => this.menaces.actualiser().catch(e => this.log.warn?.(`[menaces] ${e.message}`));

@@ -176,3 +176,96 @@ pre.conf{white-space:pre-wrap;font-size:12px;background:var(--well);border-radiu
 .retenue>span:last-child{min-width:0;overflow-wrap:anywhere}
 .check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);cursor:pointer;min-width:0;padding:4px 0}
 .check input{accent-color:var(--accent)}
+
+/* Accueil : la protection, d'abord. La tête dit l'état et porte le bouton qui
+ * règle le problème ; la chaîne dessous montre le maillon qui manque. */
+.protection-tete{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px 16px;padding:20px 20px 18px}
+.protection-tete h2{font-size:18px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+.protection-tete p{color:var(--ink-soft);font-size:13.5px;margin-top:4px;max-width:72ch;overflow-wrap:anywhere}
+.protection-tete>.btn{flex:none}
+@media (max-width:640px){.protection-tete{grid-template-columns:auto minmax(0,1fr);align-items:start;padding:16px}.protection-tete>.btn{grid-column:1/-1;justify-content:center}.protection-tete h2{font-size:16px}.orbe{width:38px;height:38px}}
+.orbe{position:relative;width:46px;height:46px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center}
+.orbe>i{position:absolute;inset:0;border-radius:50%;border:1.5px solid currentColor;opacity:.35}
+.niv-ok .orbe{background:var(--ok-wash);color:var(--ok)}
+.niv-attention .orbe{background:var(--warn-wash);color:var(--warn)}
+.niv-alarme .orbe{background:var(--alarm-wash);color:var(--alarm)}
+.niv-alarme .orbe>i,.niv-ok .orbe>i{animation:onde 2.6s var(--courbe) infinite}
+@keyframes onde{0%{transform:scale(1);opacity:.45}100%{transform:scale(1.55);opacity:0}}
+.chaine{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--hair-soft)}
+.chaine li{display:flex;gap:10px;align-items:flex-start;padding:13px 18px;min-width:0}
+.chaine li+li{border-left:1px solid var(--hair-soft)}
+.chaine strong{display:block;font-size:12.5px;font-weight:600}
+.chaine small{display:block;font-size:12px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.chaine .coche{width:20px;height:20px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.chaine .ok .coche{background:var(--ok-wash);color:var(--ok)}
+.chaine .manque .coche{background:var(--alarm-wash);color:var(--alarm)}
+.chaine .manque strong{color:var(--alarm)}
+@media (max-width:900px){.chaine{grid-template-columns:repeat(2,minmax(0,1fr))}.chaine li:nth-child(3){border-left:none}.chaine li:nth-child(n+3){border-top:1px solid var(--hair-soft)}}
+@media (max-width:520px){.chaine{grid-template-columns:minmax(0,1fr)}.chaine li+li{border-left:none;border-top:1px solid var(--hair-soft)}}
+
+/* Chiffres */
+.fig.bon strong{color:var(--ok)}
+.fig.faible strong{color:var(--g-eleve)}
+.fig.alarme strong,.fig.alarme .delta{color:var(--alarm)}
+.fig .g-etincelle{display:block}
+html[data-gamme="exploitation"] .fig .chart{margin:10px 0 0;width:100%}
+
+/* Carte du monde */
+.monde-split{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:8px 22px;align-items:center;padding:0 18px 18px}
+.monde-boite{min-width:0}
+.monde{display:block;width:100%;height:auto;overflow:hidden}
+.monde .terre{fill:var(--hair);stroke:var(--surface);stroke-width:.5;transition:fill .2s}
+.monde .terre.touche{cursor:default}
+.monde .terre.n1{fill:color-mix(in srgb,var(--alarm) 10%,var(--hair))}
+.monde .terre.n2{fill:color-mix(in srgb,var(--alarm) 18%,var(--hair))}
+.monde .terre.n3{fill:color-mix(in srgb,var(--alarm) 28%,var(--hair))}
+.monde .terre.n4{fill:color-mix(in srgb,var(--alarm) 40%,var(--hair))}
+.monde .terre.touche:hover{fill:color-mix(in srgb,var(--alarm) 60%,var(--hair))}
+.monde .halo{fill:var(--alarm);fill-opacity:.24;stroke:var(--alarm);stroke-opacity:.8;stroke-width:1}
+.monde .coeur{fill:var(--alarm)}
+.monde .onde{fill:none;stroke:var(--alarm);stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:onde 2.8s var(--courbe) infinite}
+.monde .impact:hover .halo{fill-opacity:.32}
+.origines{list-style:none;margin:0;padding:0;display:grid;gap:12px;min-width:0}
+.origines li{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.ligne-tete{display:flex;justify-content:space-between;gap:10px;align-items:baseline;min-width:0}
+.ligne-tete>:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.ligne-tete strong{font-weight:500}
+.ligne-tete b{font-family:var(--mono);font-size:12px;font-weight:500;flex:none}
+.origines .bar{height:5px;margin:6px 0 4px}
+.origines .bar i,.barres .bar i{background:var(--alarm)}
+.origines small{display:block;font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+.code{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.04em;width:30px;height:22px;border-radius:6px;background:var(--well);color:var(--ink-soft);display:inline-flex;align-items:center;justify-content:center;flex:none}
+@media (max-width:900px){.monde-split{grid-template-columns:minmax(0,1fr)}}
+/* En grand (page Attaques) : la carte sur toute la largeur, les pays dessous en deux colonnes. */
+.monde-split.grand{grid-template-columns:minmax(0,1fr);gap:18px}
+.monde-split.grand .monde-boite{max-width:1040px;margin:0 auto;width:100%}
+.monde-split.grand .origines{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 32px}
+@media (max-width:700px){.monde-split.grand .origines{grid-template-columns:minmax(0,1fr)}}
+
+/* Qui attaque qui */
+.flux-boite{padding:0 18px 16px;overflow-x:auto}
+.flux{display:block;width:100%;min-width:620px;max-width:1040px;margin:0 auto;height:auto}
+.flux .lien{fill:none;stroke:var(--alarm);stroke-opacity:.22;stroke-linecap:round;transition:stroke-opacity .15s}
+.flux .lien:hover{stroke-opacity:.6}
+.flux .noeud{fill:var(--alarm)}
+.flux .noeud.cible{fill:var(--accent)}
+.flux .nom{fill:var(--ink);font-size:13px;font-family:var(--sans)}
+.flux .val{fill:var(--muted);font-size:11px;font-family:var(--mono)}
+
+/* Listes de l'accueil */
+.compte{font-family:var(--mono);font-size:12.5px;font-weight:500;color:var(--ink)}
+.mono{font-family:var(--mono);font-size:12.5px}
+.fin-col{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:0}
+.fin-col small{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.flowrow>.code{align-self:center}
+.flowrow strong{display:block;font-weight:500;overflow-wrap:anywhere}
+.flowrow .grow1>small{display:block;color:var(--muted);font-size:12px;margin-top:2px;overflow-wrap:anywhere}
+.tout-va{display:flex;gap:12px;align-items:center;padding:14px 18px 18px}
+.tout-va strong{display:block;font-weight:500}
+.tout-va small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.carte-pleine>div:last-child{flex:1}
+.barres{display:grid;gap:12px}
+.barre-l .bar{height:6px;margin-top:6px}
+
+@media (prefers-reduced-motion:reduce){.orbe>i,.monde .onde{animation:none}}
+@media (max-width:640px){.protection-tete .orbe{width:38px;height:38px}}

@@ -14,7 +14,7 @@ import { MODES_IA, FOURNISSEURS } from './ia.js';
 import { priorites, REGLES, DOMAINES } from './regles.js';
 import { rapportPdf } from './pdf.js';
 import { ErreurAction } from './veille.js';
-import { PRIVEES, plages } from './sources.js';
+import { PRIVEES, plages, nomAppareil } from './sources.js';
 import net from 'node:net';
 import { VERSION } from './config.js';
 import { MODES, LISTE_BLANCHE_DEFAUT } from './bouclier/riposte.js';
@@ -74,6 +74,7 @@ const Q = {
   liste: { jeton: T(80) },
   sentinelle: { limite: E(1, 1000), depuis: E(0, 8.64e15), niveau: E(0, 15), hote: T(253, { motif: /^[A-Za-z0-9._:-]{1,253}$/ }), regle: T(60, { motif: /^[a-z0-9.-]{1,60}$/ }), srcip: T(45, { motif: /^[0-9a-fA-F.:]{1,45}$/ }) },
   flux: { depuis: E(0, 1e12) },
+  accueil: { heures: E(1, 720) },
 };
 
 /** Le nom d'un jeton dérivé valide (cer_<nom>_<hmac>), ou null. Comparaison à temps constant. */
@@ -356,6 +357,51 @@ export function creerApi({ socle, cfg, magasin, moteur, sources, ia, memoire, di
     if (!out.ok) throw new ErreurHttp(502, out.erreur);
     return out;
   });
+
+  // L'accueil : ce qui se passe sur le réseau, ce que VIGIE en a fait, ce qui reste à faire.
+  const accueil = async heures => {
+    const t = Date.now();
+    const depuis = t - heures * 3600e3;
+    const db = magasin.db;
+    const parType = Object.fromEntries(db.prepare("SELECT type, COUNT(*) n FROM evenements WHERE quand >= ? AND type LIKE 'bouclier.%' GROUP BY type").all(depuis).map(x => [x.type, x.n]));
+    const carte = bouclier.carnet.resume({ heures });
+    // Les cibles sont des adresses du réseau ou des noms d'hôtes : MapMyLAN donne le nom de celles qu'il connaît.
+    if (sources.public().mapmylan?.relie) {
+      for (const c of carte.cibles.slice(0, 12)) {
+        if (!net.isIP(c.cible)) continue;
+        const a = await sources.appareilParIp(c.cible).catch(() => null);
+        if (a) c.nom = nomAppareil(a);
+      }
+    }
+    const dernier = magasin.dernierAudit();
+    const ev = magasin.evenements({ limite: 500, depuis: t - 7 * 86400e3 });
+    const protection = bouclier.protection({ signalees: parType['bouclier.signalee'] || 0 });
+    const blocages = bouclier.riposte.blocages({ limite: 6 });
+    // À faire : ce qui demande quelqu'un, du plus urgent au moins urgent.
+    const aFaire = [];
+    if (protection.action && protection.niveau !== 'protege') aFaire.push({ gravite: protection.niveau === 'aveugle' || protection.niveau === 'emetteur' ? 'critique' : 'eleve', titre: protection.titre, texte: protection.texte, action: protection.action });
+    const internes = bouclier.correlateur.menacesActuelles({ limite: 3, interne: true }).filter(m => m.score >= m.seuil / 2);
+    for (const m of internes) aFaire.push({ gravite: m.score >= m.seuil ? 'critique' : 'eleve', titre: `Machine du réseau suspecte : ${m.ip}`, texte: m.raisons[0]?.texte || `score ${m.score}`, action: { type: 'aller', page: 'bouclier', libelle: 'Examiner' } });
+    const critiques = ev.filter(e => !e.acquitte && e.gravite === 'critique').length;
+    if (critiques) aFaire.push({ gravite: 'critique', titre: `${critiques} événement${critiques > 1 ? 's' : ''} critique${critiques > 1 ? 's' : ''} à lire`, texte: 'Non acquittés cette semaine.', action: { type: 'aller', page: 'evenements', libelle: 'Lire' } });
+    for (const p of (dernier ? priorites(magasin.constats(dernier.id)) : []).slice(0, 3)) aFaire.push({ gravite: p.gravite, titre: p.titre, texte: `${p.sujet ? `${p.sujet} — ` : ''}${p.correction || ''}`.slice(0, 300), action: { type: 'aller', page: 'constats', libelle: 'Voir' } });
+    if (bouclier.correlateur.tempete.courante && t - bouclier.correlateur.tempete.courante.quand < 15 * 60e3) {
+      const tp = bouclier.correlateur.tempete.courante;
+      aFaire.unshift({ gravite: 'critique', titre: `Attaque massive sur le port ${tp.port}`, texte: `${tp.sources.toLocaleString('fr-FR')} sources en une minute.`, action: { type: 'aller', page: 'bouclier', libelle: 'Voir' } });
+    }
+    return {
+      heures, maintenant: t, version: VERSION, protection,
+      chiffres: {
+        attaques: carte.total, sources: carte.sources, arretees: carte.bloquees, actifs: bouclier.riposte.actifs().length,
+        bloquees: parType['bouclier.bloque'] || 0, simulees: parType['bouclier.simule'] || 0, signalees: parType['bouclier.signalee'] || 0,
+        alertes: db.prepare('SELECT COUNT(*) n FROM sentinelle_alertes WHERE quand >= ?').get(depuis).n,
+      },
+      carte, blocages, aFaire: aFaire.slice(0, 6),
+      audit: dernier ? { score: dernier.score, debut: dernier.debut, id: dernier.id } : null,
+      geo: bouclier.geo.public(),
+    };
+  };
+  r.get('/api/accueil', async ctx => { acces(ctx, LECTURE); return accueil(ctx.q.heures || 24); }, { requete: Q.accueil });
 
   // Bouclier
   const vueBouclier = () => bouclier.etat();

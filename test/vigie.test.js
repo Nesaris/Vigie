@@ -278,7 +278,7 @@ test('en-têtes de sécurité, nonce, sonde publique minimale, security.txt, dro
 const H = ['hub'], HD = ['hub', 'derive'];
 const DROITS = {
   'GET /api/health': 'public', 'POST /api/sonde/eve': 'jeton de sonde', 'GET /api/bouclier/liste.txt': ['lecture', H],
-  'GET /api/etat': ['lecture', HD], 'GET /api/audits': ['lecture', HD], 'GET /api/audits/:id': ['lecture', HD], 'GET /api/audits/:id/pdf': ['lecture', HD],
+  'GET /api/etat': ['lecture', HD], 'GET /api/accueil': ['lecture', HD], 'GET /api/audits': ['lecture', HD], 'GET /api/audits/:id': ['lecture', HD], 'GET /api/audits/:id/pdf': ['lecture', HD],
   'GET /api/constats': ['lecture', HD], 'GET /api/evenements': ['lecture', HD], 'GET /api/actions': ['lecture', H], 'GET /api/bouclier': ['lecture', HD],
   'GET /api/sentinelle': ['lecture', HD], 'GET /api/sentinelle/alertes': ['lecture', HD], 'GET /api/sentinelle/regles': ['lecture', HD], 'GET /api/sentinelle/flux': ['lecture', []],
   'POST /api/audits': ['membre', HD], 'POST /api/veille/passe': ['membre', H], 'POST /api/evenements/:id/acquitter': ['membre', H], 'POST /api/actions': ['membre', H],

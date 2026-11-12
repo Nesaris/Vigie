@@ -10,6 +10,7 @@ import {
 } from '/socle/compte.js';
 import { pageBouclier } from './bouclier.js';
 import { pageSentinelle } from './sentinelle.js';
+import { pageAccueil, pageAttaques } from './accueil.js';
 
 // Les logos de VIGIE, dans la couleur du texte (mêmes tracés que le dossier
 // Logo) : la marque seule pour les tuiles et l'écran de connexion, le logo
@@ -61,6 +62,8 @@ ajouterPictos({
   courbe: '<path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/>',
   muraille: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M3 15h18M9 5v5M15 10v5M9 15v4"/>',
   puce: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+  maison: '<path d="M4 11.2 12 4.5l8 6.7"/><path d="M6.2 9.6V19.5h11.6V9.6"/><path d="M10 19.5v-5h4v5"/>',
+  globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.2-3.6-8.5S9.6 5.9 12 3.5z"/>',
   radar: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6.5-6.5M12 3v2M21 12h-2"/>',
 });
 
@@ -80,8 +83,11 @@ const pluriel = (n, mot, pl = mot + 's') => `${n} ${n > 1 ? pl : mot}`;
 let domaines = {};
 const stage = h('div', { class: 'stage' });
 const navs = {};
+const contexte = () => ({ api, admin, sur, aller, suivre, majRail });
 const PAGES = {
-  tableau: { titre: 'Tableau de bord', ic: 'bouclier', rendre: pageTableau },
+  accueil: { titre: 'Accueil', ic: 'maison', rendre: () => pageAccueil(contexte()) },
+  attaques: { titre: 'Attaques', ic: 'globe', rendre: p => pageAttaques(contexte(), p) },
+  tableau: { titre: 'Posture', ic: 'bouclier', rendre: pageTableau },
   constats: { titre: 'Constats', ic: 'liste', rendre: pageConstats },
   historique: { titre: 'Historique', ic: 'courbe', rendre: pageHistorique },
   // recharger : la même page, dans la même vue (le hash porte l'onglet).
@@ -100,8 +106,9 @@ const railBar = h('i');
 const app = h('div', { class: 'app' },
   h('nav', { class: 'rail', 'aria-label': 'Navigation' },
     h('div', { class: 'mark' }, logoTexte(24), h('i', { class: 'pulse' })),
+    groupe('Réseau', ['accueil', 'attaques', 'bouclier', 'sentinelle']),
     groupe('Audit', ['tableau', 'constats', 'historique']),
-    groupe('Veille', ['bouclier', 'sentinelle', 'evenements', 'actions']),
+    groupe('Veille', ['evenements', 'actions']),
     groupe('Système', ['reglages', 'securite', 'comptes']),
     h('div', { class: 'railcard' },
       h('div', { class: 'row' }, icone('bouclier', 14), h('span', { class: 'tronque', text: 'Score' }), railScore),
@@ -126,7 +133,7 @@ function suivre(peindre, ms) {
 }
 async function aller(cible) {
   const [k0, requete = ''] = cible.split('?');
-  const k = PAGES[k0] ? k0 : 'tableau';
+  const k = PAGES[k0] ? k0 : 'accueil';
   clearTimeout(minuteur);
   generation++;
   for (const [n, b] of Object.entries(navs)) b.classList.toggle('on', n === k);
@@ -226,7 +233,7 @@ async function pageTableau() {
   const e = await api.get('/api/etat');
   domaines = e.domaines;
   majRail(e);
-  if (e.enCours) minuteur = setTimeout(() => { if (location.hash.startsWith('#tableau') || !location.hash) aller('tableau'); }, 2500);
+  if (e.enCours) minuteur = setTimeout(() => { if (location.hash.startsWith('#tableau')) aller('tableau'); }, 2500);
   const a = e.audit;
   const iaEnCours = a?.ia?.statut === 'en cours';
   if (iaEnCours && !e.enCours) minuteur = setTimeout(() => aller('tableau'), 3000);
@@ -560,5 +567,5 @@ function carteTelegram(r) {
       }) }, 'Enregistrer'))));
 }
 
-aller(location.hash.slice(1) || 'tableau');
+aller(location.hash.slice(1) || 'accueil');
 setInterval(async () => { try { majRail(await api.get('/api/etat')); } catch { /* déconnecté : la porte s'en charge */ } }, 30000);

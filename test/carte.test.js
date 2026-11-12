@@ -1,5 +1,5 @@
 // L'origine des attaques : pays d'une adresse d'après les registres, carnet
-// des attaques compté par heure, et la carte du monde.
+// des attaques compté par heure, et l'accueil qui en tire son bilan.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -112,4 +112,49 @@ test('carte du monde : chaque pays a un tracé fermé dans le cadre et un point 
   for (const [cc, [x, y]] of Object.entries(CENTRES)) assert.ok(x >= 0 && x <= LARGEUR && y >= 0 && y <= HAUTEUR, cc);
   assert.ok(CENTRES.SG && CENTRES.HK, 'petits territoires très actifs');
   assert.ok(!PAYS.AQ);
+});
+
+test('API : l’accueil dit pourquoi VIGIE ne bloque pas, et l’émetteur déclaré le fait bloquer', async () => {
+  const { demarrer } = await import('../src/main.js');
+  const { Client } = await import('../socle/essai/client.js');
+  const { adminComplet } = await import('../socle/essai/inscription.js');
+  const INSTALL = 'jeton-installation-de-l-essai-carte';
+  const vigie = await demarrer({ DATA_DIR: path.join(tmp, 'api'), PORT: '0', HOTE: '127.0.0.1', SOCLE_JETON_INSTALLATION: INSTALL, VIGIE_SYSLOG_PORT: '0', VIGIE_SYSLOG_PORT_HOTE: '5514' }, { log: silence, fetchMenaces: async () => new Response('', { status: 404 }) });
+  try {
+    const admin = new Client(vigie.port);
+    await adminComplet(admin, { jeton: INSTALL });
+    assert.equal((await new Client(vigie.port).get('/api/accueil')).status, 401);
+    assert.equal((await admin.get('/api/accueil?heures=0')).status, 400);
+    let a = await admin.get('/api/accueil');
+    assert.equal(a.status, 200, JSON.stringify(a.json));
+    assert.equal(a.json.protection.niveau, 'aveugle');
+    assert.equal(a.json.aFaire[0].action.page, 'bouclier');
+
+    // Des alertes de l'IPS arrivent d'une passerelle que personne n'a déclarée.
+    const cef = src => `<132>Nov 12 10:00:00 passerelle CEF:0|Ubiquiti|UniFi Network|9.4.19|544|Threat Detected and Blocked|7|src=${src} spt=51111 dst=10.9.1.20 dpt=22 proto=TCP UNIFIcategory=Security UNIFIsubCategory=Intrusion Prevention UNIFIipsSignature=ET SCAN Potential SSH Scan UNIFIipsSignatureId=2003068 UNIFIrisk=high`;
+    for (let i = 0; i < 3; i++) vigie.bouclier.recepteur.ligne(cef('45.155.205.10'), '10.9.1.1');
+    vigie.bouclier.recepteur.ligne(cef('91.240.118.3'), '10.9.1.1');
+    await new Promise(r => setTimeout(r, 50));
+    a = await admin.get('/api/accueil?heures=24');
+    assert.equal(a.json.protection.niveau, 'emetteur');
+    assert.deepEqual(a.json.protection.action, { type: 'emetteur', ip: '10.9.1.1', libelle: 'Déclarer 10.9.1.1' });
+    assert.ok(a.json.chiffres.signalees >= 1, 'la menace vue est signalée, pas bloquée');
+    assert.equal(a.json.chiffres.actifs, 0);
+    assert.equal(a.json.carte.total, 4);
+    assert.equal(a.json.carte.sources, 2);
+    assert.deepEqual(a.json.carte.cibles.map(c => c.cible), ['10.9.1.20']);
+    assert.equal(a.json.aFaire[0].gravite, 'critique');
+
+    // Le bouton de l'accueil : l'émetteur déclaré, VIGIE bloque la menace suivante.
+    const r = await admin.put('/api/reglages/bouclier', { emetteurs: ['10.9.1.1'] });
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    for (let i = 0; i < 2; i++) vigie.bouclier.recepteur.ligne(cef('80.94.95.12'), '10.9.1.1');
+    await new Promise(r => setTimeout(r, 50));
+    a = await admin.get('/api/accueil');
+    assert.equal(a.json.chiffres.actifs, 1);
+    assert.equal(a.json.carte.bloquees, 1, 'le bilan voit le blocage sans attendre');
+    // Rien ne reçoit encore les blocages : l'accueil le dit.
+    assert.equal(a.json.protection.niveau, 'partiel');
+    assert.equal(a.json.blocages[0].ip, '80.94.95.12');
+  } finally { await vigie.arreter(); }
 });
