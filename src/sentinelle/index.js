@@ -9,6 +9,7 @@ import { Sentinelle } from './moteur.js';
 import { REGLES, gravite } from './regles.js';
 import { NOMS_DECODEURS } from './decodeurs.js';
 import { estPublique, estInterne } from '../bouclier/ip.js';
+import { natureAlerte } from '../bouclier/carnet.js';
 
 const MAX_ABONNES = 32;
 const POINTS = n => n >= 15 ? 120 : n >= 13 ? 100 : n >= 12 ? 80 : n >= 11 ? 70 : n >= 10 ? 60 : 0;
@@ -46,6 +47,8 @@ export class SentinelleVigie {
     try { this.magasin.sentinelleAlerte({ ...a, quand: a.recu || a.quand }); } catch (e) { this.log.warn?.(`[sentinelle] base : ${e.message}`); }
     const ip = a.champs.srcip;
     const points = POINTS(a.niveau);
+    // Le carnet des attaques : une alerte venue d'une adresse publique, sur l'hôte qui l'a journalisée.
+    if (ip && this.bouclier?.carnet) this.bouclier.carnet.noter({ quand: a.recu || a.quand, ip, cible: a.hote || a.emetteur || '', port: Number(a.champs.dport || a.champs.port) || 0, nature: natureAlerte(a.groupes) });
     // Le bouclier : l'adresse qui attaque prend des points ; l'hôte qui montre
     // des signes de compromission aussi, par l'adresse qui nous a envoyé son journal.
     if (r.correler && this.bouclier && points) {

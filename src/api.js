@@ -54,6 +54,7 @@ const S = {
     listesPropres: { type: 'liste', max: 10, de: { type: 'objet', champs: { nom: T(60, { requis: true }), type: T(8, { requis: true, parmi: ['ip', 'domaine'] }), url: T(500, { requis: true, motif: /^https:\/\/\S{3,490}$/ }), poids: E(5, 100) } } },
     dureesMinutes: { type: 'liste', max: 6, de: E(5, 525600) },
     tempeteSources: E(5, 100000), tempeteLignes: E(50, 1000000), tempeteBlocages: E(0, 500), tempeteMinutes: E(1, 1440), cloudflareModeAttaque: B,
+    carnetJours: E(1, 365),
   },
   cloudflare: { jeton: T(200, { motif: /^[A-Za-z0-9_-]{20,200}$/ }), retirer: B, zones: { type: 'liste', max: 50, de: { type: 'objet', champs: { id: T(40, { requis: true, motif: /^[0-9a-f]{32}$/ }), nom: T(253, { requis: true }) } } } },
   cloudflareSonde: { jeton: T(200, { motif: /^[A-Za-z0-9_-]{20,200}$/ }) },

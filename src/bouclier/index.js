@@ -8,6 +8,9 @@ import { Riposte } from './riposte.js';
 import { Recepteur } from './recepteur.js';
 import { depuisEve, depuisPasserelle } from './journaux.js';
 import { PasserelleMapMyLAN } from './passerelle-mml.js';
+import { Geo } from './geo.js';
+import { Carnet, natureObservation } from './carnet.js';
+import { estPublique } from './ip.js';
 
 export const empreinteJeton = j => crypto.createHash('sha256').update(`sonde:${j}`).digest('hex');
 
@@ -29,6 +32,9 @@ export class Bouclier {
     this.passerelle = { reliee: false, lu: null };
     const passerelleAuto = () => (this.passerelle.reliee && this.passerelle.bouclier ? new PasserelleMapMyLAN({ sources, nom: this.passerelle.nom, hote: this.passerelle.hote }) : null);
     this.riposte = new Riposte({ db, magasin, journal, signaler, maintenant, log, passerelleAuto });
+    this.geo = new Geo({ dossier: cfg.donnees, fetch: f, maintenant, log });
+    const arretees = db.prepare("SELECT DISTINCT ip FROM blocages WHERE debut >= ? OR (etat = 'actif' AND (fin IS NULL OR fin > ?))");
+    this.carnet = new Carnet({ db, geo: this.geo, maintenant, log, bloquees: depuis => new Set(arretees.all(depuis, this.maintenant()).map(r => r.ip)) });
     this.releve = { derniere: null, lues: 0, erreur: null, depuis: null, vus: new Set() };
     this.derniereIpsSyslog = 0;
     this.correlateur = new Correlateur({ menaces: this.menaces, reglage, maintenant,
@@ -36,10 +42,23 @@ export class Bouclier {
       surTempete: tp => this.riposte.tempete(tp).catch(e => log.warn?.(`[bouclier] tempête : ${e.message}`)) });
     this.recepteur = new Recepteur({
       port: cfg.syslogPort, emetteurs: () => reglage().emetteurs, log, maintenant,
-      surObservation: o => { if (o.type === 'ips') this.derniereIpsSyslog = this.maintenant(); this.correlateur.observer(o); this.sentinelle?.observation(o); },
+      surObservation: o => { if (o.type === 'ips') this.derniereIpsSyslog = this.maintenant(); this.observer(o); this.sentinelle?.observation(o); },
     });
     this.sondes = {};
     this.sentinelle = null;
+  }
+
+  /**
+   * Toute observation des capteurs : la corrélation la juge, le carnet compte
+   * ce qui entre de l'extérieur (même règle que la corrélation : une source
+   * publique vers une destination qui ne l'est pas, ou une alerte de l'IPS).
+   */
+  observer(o) {
+    this.correlateur.observer(o);
+    const nature = natureObservation(o);
+    if (!nature || !o.src || !estPublique(o.src)) return;
+    if (nature === 'pare-feu' && o.dst && estPublique(o.dst)) return;
+    this.carnet.noter({ quand: o.quand, ip: o.src, cible: o.dst || '', port: o.dport || 0, nature });
   }
 
   /** La sentinelle lit les lignes de journaux d'hôtes que le bouclier ne reconnaît pas, et reçoit ses observations en flux. */
@@ -67,7 +86,7 @@ export class Bouclier {
       const obs = depuisEve(o, `sonde:${sonde}`);
       if (!obs) continue;
       lues++;
-      this.correlateur.observer(obs);
+      this.observer(obs);
     }
     this.sondes[sonde] = { derniere: this.maintenant(), lues: (this.sondes[sonde]?.lues || 0) + lues };
     return lues;
@@ -117,7 +136,7 @@ export class Bouclier {
       if (!o) continue;
       lues++;
       plusTard = Math.max(plusTard, o.quand);
-      this.correlateur.observer(o);
+      this.observer(o);
     }
     if (this.releve.vus.size > 5000) this.releve.vus = new Set([...this.releve.vus].slice(-2000));
     // La fenêtre suivante reprend un peu avant : une alerte écrite en retard n'est pas perdue, les vues sont écartées.
@@ -143,6 +162,7 @@ export class Bouclier {
       unifi: { relie: !!this.riposte.unifi(), directe: !!(r.unifiHote && r.cleUnifi), hote: r.unifiHote || '', fp: r.unifiFp || '', ...this.riposte.etatUnifi },
       cloudflare: { relie: !!r.cloudflareJeton, compte: r.cloudflareCompte || '', zones: r.cloudflareZones || [], modeAttaque: !!r.cloudflareModeAttaque, ...this.riposte.etatCloudflare },
       tempete: this.correlateur.tempete.courante,
+      geo: this.geo.public(),
       passerelle: { ...this.passerelle, releve: { derniere: this.releve.derniere, lues: this.releve.lues, erreur: this.releve.erreur, active: !!this.passerelle.ips && this.maintenant() - this.derniereIpsSyslog >= 15 * 60e3 } },
     };
   }
@@ -154,10 +174,14 @@ export class Bouclier {
     this.iListes = setInterval(listes, 30 * 60e3); this.iListes.unref?.();
     this.iRiposte = setInterval(() => { this.riposte.expirer(); this.riposte.synchroniser().catch(() => null); this.riposte.synchroniserCloudflare().catch(() => null); this.riposte.expirerAttaque().catch(() => null); this.releverIps().catch(() => null); }, 60e3);
     this.iRiposte.unref?.();
+    this.iCarnet = setInterval(() => this.carnet.vider(), 10_000); this.iCarnet.unref?.();
+    const entretien = () => { try { this.carnet.purger(this.magasin.reglage('bouclier').carnetJours); } catch (e) { this.log.warn?.(`[carnet] purge : ${e.message}`); } this.geo.actualiser().catch(e => this.log.warn?.(`[géo] ${e.message}`)); };
+    this.tEntretien = setTimeout(entretien, 30_000); this.tEntretien.unref?.();
+    this.iEntretien = setInterval(entretien, 6 * 3600e3); this.iEntretien.unref?.();
     const passerelle = () => this.lirePasserelle().catch(e => this.log.warn?.(`[passerelle] ${e.message}`));
     this.tPasserelle = setTimeout(passerelle, 5_000); this.tPasserelle.unref?.();
     this.iPasserelle = setInterval(passerelle, 5 * 60e3); this.iPasserelle.unref?.();
     return this;
   }
-  arreter() { clearTimeout(this.tListes); clearInterval(this.iListes); clearInterval(this.iRiposte); clearTimeout(this.tPasserelle); clearInterval(this.iPasserelle); this.recepteur.arreter(); }
+  arreter() { clearInterval(this.iCarnet); clearTimeout(this.tEntretien); clearInterval(this.iEntretien); try { this.carnet.vider(); } catch { /* base fermée */ } clearTimeout(this.tListes); clearInterval(this.iListes); clearInterval(this.iRiposte); clearTimeout(this.tPasserelle); clearInterval(this.iPasserelle); this.recepteur.arreter(); }
 }

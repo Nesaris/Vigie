@@ -95,6 +95,8 @@ export const DEFAUTS = {
     // Tempête : sources distinctes sur un même port et lignes entrantes en une minute ;
     // blocages immédiats des plus bruyantes ; durée du mode Under Attack.
     tempeteSources: 40, tempeteLignes: 600, tempeteBlocages: 20, tempeteMinutes: 15,
+    // Le carnet des attaques (accueil, carte) : jours gardés.
+    carnetJours: 30,
   },
   // La sentinelle : l'analyse des journaux d'hôtes reçus en syslog (src/sentinelle).
   // seuil : niveau (0-15) à partir duquel une alerte est retenue ; seuilEvenement :
