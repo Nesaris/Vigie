@@ -360,7 +360,14 @@ export async function pageBouclier({ api, admin, sur, quand, interrupteur, suivr
         ...(etat.passerelle?.ips ? [h('dt', { text: 'Relève IPS' }), h('dd', { text: etat.passerelle.releve.erreur ? `erreur : ${etat.passerelle.releve.erreur}` : etat.passerelle.releve.active ? `par MapMyLAN · ${etat.passerelle.releve.lues} alertes · ${depuis(etat.passerelle.releve.derniere)}` : 'en pause : les alertes arrivent déjà par syslog' })] : []),
         h('dt', { text: 'Reçues · lues' }), h('dd', { text: `${s.recues.toLocaleString('fr-FR')} · ${s.lues.toLocaleString('fr-FR')}` }),
         h('dt', { text: 'Refusées' }), h('dd', { text: `${s.refusees} (émetteur non déclaré)${s.dernierRefus ? ` · dernier : ${s.dernierRefus}` : ''}${s.debordees ? ` · ${s.debordees} au-delà de 3 000/s` : ''}` }),
-        ...emetteurs.flatMap(([ip, t]) => [h('dt', { text: 'Émetteur' }), h('dd', { text: `${ip} · ${depuis(t)}` })])),
+        ...emetteurs.flatMap(([ip, t]) => [h('dt', { text: 'Émetteur' }), h('dd', {}, `${ip} · ${depuis(t)}`,
+          // Un émetteur vu mais pas déclaré : un clic le déclare, et la riposte devient automatique.
+          admin && reglages && !(reglages.emetteurs || []).includes(ip) ? h('button', { class: 'btn sm mt9', type: 'button', onclick: sur(async () => {
+            if (!(await confirmer(`Déclarer ${ip} ?`, `VIGIE ne lira plus que les journaux venus de ${ip}${(reglages.emetteurs || []).length ? ' et des émetteurs déjà déclarés' : ''}, et pourra bloquer seul ce qu’ils montrent.`, { oui: 'Déclarer' }))) return;
+            await api.put('/api/reglages/bouclier', { emetteurs: [...(reglages.emetteurs || []), ip] });
+            toast(`${ip} déclaré.`);
+            await recharger();
+          }) }, 'Déclarer') : null)])),
       h('ol', { class: 'etapes' },
         h('li', { text: 'UniFi Network → Paramètres → Control Plane → Integrations → Activity Logging (Syslog) : « SIEM Server », l’adresse et le port ci-dessus. Catégories Security : Firewall, Honeypot, Intrusion Prevention (format CEF).' }),
         h('li', { text: 'Paramètres → CyberSecure → Traffic Logging : « SIEM Server », même adresse et même port (lignes du pare-feu : balayages, force brute).' }),
