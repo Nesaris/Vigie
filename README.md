@@ -22,7 +22,7 @@
 
 </p>
 
-<p align="center"><a href="README.fr.md">🇫🇷 Documentation complète en français</a> · <a href="https://nesaris.github.io">Nesaris Network</a></p>
+<p align="center"><a href="README.fr.md">Full documentation</a> · <a href="https://nesaris.github.io">Nesaris Network</a></p>
 
 ## Why Vigie?
 
@@ -59,7 +59,7 @@ docker compose up -d --build
 docker compose logs vigie | grep "Jeton d'installation"   # one-time setup token
 ```
 
-Full documentation (configuration, backups, key rotation, reverse proxy, upgrades) is in **[README.fr.md](README.fr.md)** (French).
+Full documentation (configuration, backups, key rotation, reverse proxy, upgrades) is in **[README.fr.md](README.fr.md)**.
 
 ## Part of Nesaris Network
 
