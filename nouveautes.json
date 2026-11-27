@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.6.1",
+    "date": "2026-11-27",
+    "points": [
+      "Image : Node 24.22.3 et paquets du système remis à niveau (failles hautes de Node et de PAM corrigées) ; la 1.6.0 n’avait pas pu être publiée."
+    ]
+  },
+  {
     "version": "1.6.0",
     "date": "2026-11-27",
     "points": [

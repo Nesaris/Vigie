@@ -3,7 +3,7 @@
 # TLS et zlib sont dans le moteur). Image de base épinglée par empreinte
 # (index multi-architecture amd64 + arm64) : une étiquette peut être déplacée,
 # une empreinte non.
-ARG NODE_IMAGE=node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+ARG NODE_IMAGE=node:24.22.3-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
 FROM ${NODE_IMAGE}
 # Paquets du système à jour, et pas de npm, npx, corepack ni yarn : le service
 # n'a aucune dépendance npm, ils n'ont rien à faire dans l'image.
