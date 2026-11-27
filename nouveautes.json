@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.6.0",
+    "date": "2026-11-27",
+    "points": [
+      "Nouvel écran de connexion : deux mains de points derrière une vitre givrée, qui se touchent quand la connexion aboutit (de jour comme de nuit, immobile si l’appareil réduit les animations).",
+      "Première configuration plus courte : seul l’essentiel obligatoire est demandé ; le reste, déjà réglé, se passe en revue pas à pas ou se termine d’un clic.",
+      "« Rester connecté » à la connexion : décoché, la session se ferme avec le navigateur."
+    ]
+  },
+  {
     "version": "1.5.0",
     "date": "2026-11-12",
     "points": [

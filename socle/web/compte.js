@@ -24,6 +24,9 @@ export function h(tag, props = {}, ...enfants) {
 }
 
 const PICTOS = {
+  oeil: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  oeilBarre: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 20 20 4"/>',
+  cleAcces: '<circle cx="8" cy="9" r="4"/><path d="M2 21c0-3.3 2.7-6 6-6 1.6 0 3 .6 4 1.6"/><path d="M15.5 13.5a2.5 2.5 0 1 1 3.5 2.3V21l-1.2 1-1.3-1.2 1-1-1-1 1-1v-1"/>',
   cle: '<circle cx="8" cy="12" r="4.2"/><path d="M12.2 12H21M17.5 12v3.4M20 12v2.6"/>',
   bouclier: '<path d="M12 3.5 19 6.3v5.2c0 4.4-2.9 7.5-7 8.9-4.1-1.4-7-4.5-7-8.9V6.3z"/><path d="M9.6 12.1 11.4 13.9 15 10.3"/>',
   telephone: '<rect x="7" y="3" width="10" height="18" rx="2.4"/><path d="M11 17.5h2"/>',
@@ -406,14 +409,28 @@ function grouper(reglages) {
 
 // Promesse résolue quand la session est complète : le service peut alors
 // monter son interface. marque : nœud du logo (optionnel).
-export function porte({ api, service, marque = null, sousTitre = '' }) {
+// decor : « givre » (par défaut) pose les deux mains en points derrière une vitre dépolie ; « aucun » garde la porte simple
+// (givre.js), seulement si un écran de la porte s'affiche vraiment.
+export function porte({ api, service, marque = null, sousTitre = '', decor = 'givre' }) {
   return new Promise(resolve => {
     const wiz = h('div', { class: 'wiz' });
+    const enGivre = decor === 'givre';
     const racine = h('div', { class: 'porte' }, h('div', { class: 'halos', 'aria-hidden': 'true' }, h('i'), h('i')), wiz,
-      h('div', { class: 'credit', text: `${service} · Codex64` }));
+      h('div', { class: 'credit', text: enGivre ? 'Frôle les mains · clic pour disperser' : `${service} · Codex64` }));
     document.body.append(racine);
+    let givre = null, givreDemande = false;
+    const poserDecor = () => {
+      if (decor !== 'givre' || givreDemande) return;
+      givreDemande = true;
+      import('./givre.js').then(m => { if (racine.isConnected) givre = m.poserGivre(racine, wiz); }).catch(() => { /* décor absent : la porte ordinaire */ });
+    };
+    const fermer = () => { givre?.arreter(); racine.remove(); };
 
-    const entete = (etapes = 0, courante = 0) => h('div', { class: 'whead' },
+    const entete = (etapes = 0, courante = 0) => enGivre
+      // Givre : la marque sur une ligne, comme la maquette ; le thème suit le système.
+      ? h('div', { class: 'whead' }, h('div', { class: 'brand-g' }, h('span', { class: 'g' }, marque ? marque.cloneNode(true) : icone('bouclier', 18)), h('span', { text: service })),
+        etapes > 1 ? h('div', { class: 'steps', 'aria-hidden': 'true' }, Array.from({ length: etapes }, (_, i) => h('i', { class: i < courante ? 'done' : i === courante ? 'now' : '' }))) : null)
+      : h('div', { class: 'whead' },
       h('div', { class: 'brand' }, h('div', { class: 'g' }, marque ? marque.cloneNode(true) : icone('bouclier', 18)),
         h('div', {}, h('b', { text: service }), h('span', { text: sousTitre || 'Accès protégé' })), h('div', { class: 'th' }, basculeTheme())),
       etapes > 1 ? h('div', { class: 'steps', 'aria-hidden': 'true' }, Array.from({ length: etapes }, (_, i) => h('i', { class: i < courante ? 'done' : i === courante ? 'now' : '' }))) : null);
@@ -423,6 +440,7 @@ export function porte({ api, service, marque = null, sousTitre = '' }) {
       wiz.replaceChildren(entete(etapes, courante), h('div', { class: 'wbody' }, h('h1', { text: titre }), sous ? h('p', { class: 'sub', text: sous }) : null, corps),
         pied.length ? h('div', { class: 'wfoot' }, pied) : h('div', { class: 'wfoot' }));
       wiz.querySelector('input:not([type=checkbox])')?.focus();
+      poserDecor();
     };
 
     const occupe = async (bouton, zoneErreur, fn) => {
@@ -444,7 +462,9 @@ export function porte({ api, service, marque = null, sousTitre = '' }) {
       if (e.session.niveau === 'inscription') return inscription(e);
       if (e.session.compte.facteurs.secours === 0) return codesSecours(e);
       if (e.assistant?.doit) return e.session.compte.role === 'admin' ? assistant(e) : attenteAssistant(e);
-      racine.remove();
+      // Avec le givre, les deux mains se touchent avant que la porte s'efface.
+      if (givre) { givre.toucher(true); racine.classList.add('fin'); setTimeout(() => { givre.arreter(); racine.remove(); }, 1400); }
+      else fermer();
       resolve(e);
       // Après une mise à jour : ce qu'elle apporte, par-dessus l'interface montée.
       if (e.nouveautes) setTimeout(() => montrerNouveautes(api, e.nouveautes, service), 700);
@@ -460,28 +480,52 @@ export function porte({ api, service, marque = null, sousTitre = '' }) {
       // Première fois : tout est nouveau, aucune pastille.
       const montres = premiere ? d.reglages.filter(r => r.source !== 'environnement').map(r => ({ ...r, nouveau: false })) : d.reglages.filter(r => r.nouveau);
       const fixes = premiere ? d.reglages.filter(r => r.source === 'environnement') : [];
-      const groupes = premiere ? grouper(montres) : [['Nouveaux réglages', montres]];
-      const etapes = groupes.length + 1;
-      const forms = groupes.map(([, rs]) => {
+      // Première fois : d'abord l'essentiel (obligatoire et sans valeur), puis
+      // le reste, déjà réglé, présenté étape par étape — chacune se passe, et
+      // on peut terminer à tout moment. Après une mise à jour : les nouveautés.
+      const essentiel = r => r.requis && (r.type === 'secret' ? !r.pose : (r.valeur === undefined || r.valeur === null || r.valeur === ''));
+      const liste = premiere
+        ? [...(montres.some(essentiel) ? [{ nom: 'L’essentiel', rs: montres.filter(essentiel), facultatif: false }] : []),
+          ...grouper(montres.filter(r => !essentiel(r))).map(([nom, rs]) => ({ nom, rs, facultatif: true }))]
+        : [{ nom: 'Nouveaux réglages', rs: montres, facultatif: false }];
+      const construire = rs => {
         const simples = rs.filter(r => !r.avance), avances = rs.filter(r => r.avance);
         const f = formulaireReglages([...simples, ...avances]);
         const corps = f.noeuds.slice(0, simples.length);
         if (avances.length) corps.push(h('details', { class: 'avances grpf' }, h('summary', { text: 'Réglages avancés' }), f.noeuds.slice(simples.length)));
         return { f, corps };
-      });
+      };
+      const forms = liste.map(x => construire(x.rs));
       const tout = () => Object.assign({}, ...forms.map(x => x.f.valeurs()));
       const err = h('p', { class: 'erreur', role: 'alert' });
+      const facultatives = liste.map((x, i) => i).filter(i => liste[i].facultatif);
+      // Le parcours : les étapes obligatoires, un aperçu du reste, chaque étape facultative, la fin.
+      const parcours = [...liste.map((x, i) => i).filter(i => !liste[i].facultatif).map(i => ({ groupe: i })),
+        ...(facultatives.length && premiere ? [{ apercu: true }] : []), ...facultatives.map(i => ({ groupe: i })), { fin: true }];
+      const etapes = parcours.length;
+      const position = quoi => parcours.findIndex(x => (quoi === 'fin' ? x.fin : quoi === 'apercu' ? x.apercu : x.groupe === quoi));
 
-      const montrer = i => {
-        const precedent = i > 0 ? h('button', { class: 'retour', type: 'button', onclick: () => montrer(i - 1) }, icone('retour'), 'Précédent') : piedDeconnexion();
-        if (i < groupes.length) {
-          const [nom] = groupes[i];
-          const suivant = h('button', { class: 'next', type: 'button', onclick: () => montrer(i + 1) }, 'Suivant', icone('fleche'));
-          return ecran({ etapes, courante: i, large: true,
-            titre: premiere ? nom : 'Nouveaux réglages',
-            sous: premiere ? (i === 0 ? `Première configuration de ${service}. Chaque valeur proposée convient pour commencer ; tout reste modifiable ensuite dans Comptes.` : null)
-              : `La mise à jour${d.version ? ` vers ${d.version}` : ''} apporte ${montres.length > 1 ? 'des réglages' : 'un réglage'} à confirmer. Le reste ne change pas.`,
-            corps: [h('div', { class: 'assistant-champs' }, forms[i].corps)], pied: [precedent, suivant] });
+      const montrer = pos => {
+        const etape = parcours[pos];
+        const precedent = pos > 0 ? h('button', { class: 'retour', type: 'button', onclick: () => montrer(pos - 1) }, icone('retour'), 'Précédent') : piedDeconnexion();
+        if (etape.apercu) {
+          const lignes = facultatives.map(i => h('button', { class: 'etape-ligne', type: 'button', onclick: () => montrer(position(i)) },
+            h('span', {}, h('b', { text: liste[i].nom }), h('small', { text: `${liste[i].rs.length} réglage${liste[i].rs.length > 1 ? 's' : ''}` })), icone('fleche')));
+          return ecran({ etapes, courante: pos, titre: liste.some(x => !x.facultatif) ? 'L’essentiel est fait' : 'Tout est déjà réglé',
+            sous: `Les valeurs proposées conviennent pour commencer. Passe en revue ce qui te parle, ou termine tout de suite : tout reste modifiable ensuite dans Comptes.`,
+            corps: [h('div', { class: 'etapes-liste grpf' }, lignes)],
+            pied: [precedent, h('button', { class: 'retour', type: 'button', onclick: () => montrer(pos + 1) }, 'Pas à pas'), h('button', { class: 'next', type: 'button', onclick: () => montrer(position('fin')) }, 'Terminer maintenant', icone('fleche'))] });
+        }
+        if (!etape.fin) {
+          const i = etape.groupe, x = liste[i];
+          const suivant = h('button', { class: 'next', type: 'button', onclick: () => montrer(pos + 1) }, 'Suivant', icone('fleche'));
+          const k = facultatives.indexOf(i);
+          const passer = x.facultatif ? h('button', { class: 'retour', type: 'button', onclick: () => { forms[i] = construire(x.rs); montrer(pos + 1); } }, 'Passer') : null;
+          return ecran({ etapes, courante: pos, large: true, titre: x.nom,
+            sous: !premiere ? `La mise à jour${d.version ? ` vers ${d.version}` : ''} apporte ${montres.length > 1 ? 'des réglages' : 'un réglage'} à confirmer. Le reste ne change pas.`
+              : x.facultatif ? `Facultatif — ${k + 1} sur ${facultatives.length}. Les valeurs proposées conviennent ; change seulement ce qui te parle.`
+              : `Première configuration de ${service} : ce qu’il faut pour démarrer. Le reste est déjà réglé.`,
+            corps: [h('div', { class: 'assistant-champs' }, forms[i].corps)], pied: [precedent, passer, suivant].filter(Boolean) });
         }
         const go = h('button', { class: 'next', type: 'button' }, premiere ? 'Terminer la configuration' : 'Enregistrer', icone('verifie'));
         go.addEventListener('click', () => occupe(go, err, async () => {
@@ -490,7 +534,7 @@ export function porte({ api, service, marque = null, sousTitre = '' }) {
           try { r = await api.post('/api/compte/reglages', { valeurs: tout() }); } catch (x) {
             const fautifs = x.details?.champs || {};
             const k = forms.findIndex(fx => fx.f.erreurs(fautifs).length);
-            if (k >= 0) { montrer(k); forms[k].f.erreurs(fautifs); }
+            if (k >= 0) { montrer(position(k)); forms[k].f.erreurs(fautifs); }
             throw x;
           }
           if (r.redemarrage && r.automatique) {
@@ -507,7 +551,7 @@ export function porte({ api, service, marque = null, sousTitre = '' }) {
           suite();
         }));
         const recap = Object.keys(tout());
-        ecran({ etapes, courante: groupes.length, large: true, titre: premiere ? 'Tout est prêt' : 'Confirmer',
+        ecran({ etapes, courante: pos, large: true, titre: premiere ? 'Tout est prêt' : 'Confirmer',
           sous: recap.length ? `${recap.length} réglage${recap.length > 1 ? 's' : ''} modifié${recap.length > 1 ? 's' : ''} par rapport aux valeurs proposées.` : 'Les valeurs proposées sont gardées.',
           corps: [fixes.length ? h('details', { class: 'grpf' }, h('summary', { text: `${fixes.length} réglage${fixes.length > 1 ? 's' : ''} fixé${fixes.length > 1 ? 's' : ''} par l’environnement` }), formulaireReglages(fixes).noeuds) : null, err],
           pied: [precedent, go] });
@@ -550,7 +594,71 @@ export function porte({ api, service, marque = null, sousTitre = '' }) {
       wiz.lastElementChild.remove();
     }
 
+    // Connexion au gabarit de la maquette givre : identifiant, mot de passe
+    // (avec l'œil), « Rester connecté », bouton plein, clé d'accès en dessous.
+    function connexionGivre(e) {
+      const err = h('p', { class: 'msg', role: 'alert' });
+      const parMdp = e.politique.motdepasse !== 'desactive';
+      const avecCle = e.cles && clesDisponibles();
+      const rester = h('input', { type: 'checkbox', name: 'rester' });
+      const secouer = () => { wiz.classList.remove('secoue'); void wiz.offsetWidth; wiz.classList.add('secoue'); };
+      const echec = (x, champFautif) => { err.classList.remove('info'); err.textContent = x instanceof DOMException ? raisonCle(x) : x.message; champFautif?.focus(); secouer(); };
+      const corps = [bandeauContexte(e)];
+      let cle = null;
+      if (avecCle) {
+        cle = h('button', { class: 'alt-g', type: 'button' }, icone('cleAcces', 17), 'Utiliser une clé d’accès');
+        cle.addEventListener('click', async () => {
+          err.textContent = ''; cle.setAttribute('aria-busy', 'true');
+          try {
+            const o = await api.post('/api/compte/connexion/cle/options');
+            await api.post('/api/compte/connexion/cle', { reponse: await utiliserCle(o), rester: rester.checked });
+            suite();
+          } catch (x) { echec(x); } finally { cle.removeAttribute('aria-busy'); }
+        });
+      }
+      if (parMdp) {
+        const ident = champ('Identifiant', { autocomplete: 'username webauthn', autocapitalize: 'none', spellcheck: false, placeholder: 'nom d’utilisateur' });
+        const mdp = champ('Mot de passe', { type: 'password', autocomplete: 'current-password', placeholder: '••••••••••' });
+        const oeil = h('button', { class: 'oeil', type: 'button', 'aria-label': 'Afficher le mot de passe', 'aria-pressed': 'false' }, icone('oeil', 18));
+        oeil.addEventListener('click', ev => {
+          ev.preventDefault();
+          const voir = mdp.input.type === 'password';
+          mdp.input.type = voir ? 'text' : 'password';
+          oeil.setAttribute('aria-pressed', String(voir)); oeil.setAttribute('aria-label', voir ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+          oeil.replaceChildren(icone(voir ? 'oeilBarre' : 'oeil', 18)); mdp.input.focus();
+        });
+        const boite = h('div', { class: 'in' }); mdp.input.replaceWith(boite); boite.append(mdp.input, oeil);
+        for (const c of [ident, mdp]) c.input.addEventListener('input', () => { err.textContent = ''; });
+        const oubli = h('a', { href: '#', class: 'oubli', text: 'Mot de passe oublié ?' });
+        oubli.addEventListener('click', ev => { ev.preventDefault(); err.classList.add('info'); err.textContent = 'Demande un lien de réinitialisation à ton administrateur.'; });
+        const libelle = h('span', { text: 'Se connecter' });
+        const go = h('button', { class: 'btn-g', type: 'submit' }, h('span', { class: 'sp', 'aria-hidden': 'true' }), libelle);
+        const envoyer = async (preuve) => {
+          try {
+            await api.post('/api/compte/connexion', { identifiant: ident.input.value.trim(), motDePasse: mdp.input.value, rester: rester.checked, ...(preuve ? { preuve } : {}) });
+          } catch (x) {
+            if (x.status === 428 && x.details?.preuve && !preuve) return envoyer(await resoudrePreuve(x.details.preuve));
+            throw x;
+          }
+        };
+        corps.push(h('form', { onsubmit: async ev => {
+          ev.preventDefault();
+          if (go.hasAttribute('aria-busy')) return;
+          if (!ident.input.value.trim()) return echec(new Error('Indique ton identifiant.'), ident.input);
+          if (!mdp.input.value) return echec(new Error('Indique ton mot de passe.'), mdp.input);
+          err.textContent = ''; go.setAttribute('aria-busy', 'true'); libelle.textContent = 'Vérification…';
+          try { await envoyer(); mdp.input.value = ''; suite(); } catch (x) { echec(x, mdp.input); } finally { go.removeAttribute('aria-busy'); libelle.textContent = 'Se connecter'; }
+        } }, ident.noeud, mdp.noeud, err, h('div', { class: 'ligne' }, h('label', { class: 'chk' }, rester, 'Rester connecté'), oubli), go, cle));
+      } else {
+        corps.push(err, h('div', { class: 'ligne' }, h('label', { class: 'chk' }, rester, 'Rester connecté')), cle);
+      }
+      corps.push(h('div', { class: 'pied-g' }, h('span', {}, icone('cadenas', 12), e.securise ? 'Connexion chiffrée' : 'Connexion non chiffrée'), h('span', { text: service })));
+      ecran({ titre: 'Connexion', sous: parMdp ? 'Content de te revoir. Identifie-toi pour continuer.' : 'Ce service se passe de mot de passe : ta clé d’accès suffit.', corps });
+      wiz.lastElementChild.remove();
+    }
+
     function connexion(e) {
+      if (enGivre) return connexionGivre(e);
       const err = h('p', { class: 'erreur', role: 'alert' });
       const ident = champ('Identifiant', { autocomplete: 'username webauthn', autocapitalize: 'none', spellcheck: false });
       const mdp = champ('Mot de passe', { type: 'password', autocomplete: 'current-password' });
@@ -732,7 +840,7 @@ export function porte({ api, service, marque = null, sousTitre = '' }) {
     async function codesSecours(e) {
       const err = h('p', { class: 'erreur', role: 'alert' });
       let r;
-      try { r = await api.post('/api/compte/secours'); } catch (x) { return ecran({ titre: 'Codes de secours', sous: x.message, pied: [h('button', { class: 'next', type: 'button', onclick: () => { racine.remove(); resolve(e); } }, 'Continuer')] }); }
+      try { r = await api.post('/api/compte/secours'); } catch (x) { return ecran({ titre: 'Codes de secours', sous: x.message, pied: [h('button', { class: 'next', type: 'button', onclick: () => { fermer(); resolve(e); } }, 'Continuer')] }); }
       const coche = h('input', { type: 'checkbox', id: 'range' });
       const go = h('button', { class: 'next', type: 'button', disabled: true, onclick: () => suite() }, 'Terminer', icone('verifie'));
       coche.addEventListener('change', () => { go.disabled = !coche.checked; });
